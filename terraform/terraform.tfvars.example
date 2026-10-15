@@ -1,0 +1,21 @@
+# Cloudflare API Token (sensitive).
+# Alternatively, leave as null and export the CLOUDFLARE_API_TOKEN environment variable.
+cloudflare_api_token = "your-cloudflare-api-token-here"
+
+# Cloudflare Account ID (found on Cloudflare Dashboard under Account Overview / Workers)
+cloudflare_account_id = "your-cloudflare-account-id-here"
+
+# Cloudflare Worker script name
+worker_name = "student-task-manager-worker"
+
+# Cloudflare Workers KV namespace title
+kv_namespace_title = "student_task_manager_kv"
+
+# Global binding name exposed inside the Worker script (accessible as env.TASKS_KV)
+kv_binding_name = "TASKS_KV"
+
+# Compatibility date for Cloudflare Workers runtime (YYYY-MM-DD)
+compatibility_date = "2024-01-01"
+
+# Relative path to Worker source code
+worker_script_path = "../application/worker.js"

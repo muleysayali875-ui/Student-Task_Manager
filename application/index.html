@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Task Manager | Serverless Productivity Dashboard</title>
+  <meta name="description" content="A clean, student-friendly task management dashboard powered by Cloudflare Workers and Workers KV.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>">
+</head>
+<body>
+  <!-- Header / Navigation -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 3L1 9L12 15L21 10.09V17H23V9L12 3ZM5 13.18V17.18C5 19.94 8.13 22 12 22C15.87 22 19 19.94 19 17.18V13.18L12 17L5 13.18Z"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1 class="brand-title">Student Task Manager</h1>
+          <p class="brand-subtitle" style="display: none;">Academic Task Dashboard</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="backend-status" id="backendStatus" title="System Status: Checking connection...">
+          <span class="status-dot status-checking" id="statusDot"></span>
+          <span class="status-label" id="statusLabel">Connecting...</span>
+        </div>
+        <button type="button" class="btn btn-primary" id="openCreateModalBtn" aria-haspopup="dialog">
+          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+          </svg>
+          Add Task
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="app-main">
+    <div class="main-container">
+
+      <!-- Welcome Section -->
+      <section class="welcome-section" aria-label="Welcome">
+        <h2 class="welcome-heading">Your tasks, all in one place</h2>
+        <p class="welcome-subtext">Manage assignments, track coursework priorities, and stay organized.</p>
+      </section>
+
+      <!-- Metrics / Summary Dashboard -->
+      <section class="dashboard-metrics" aria-label="Task Summary Metrics">
+        <div class="metric-card metric-all" id="metricCardTotal" role="button" tabindex="0" title="Click to show all tasks">
+          <div class="metric-icon metric-icon-all" aria-hidden="true">📋</div>
+          <div class="metric-content">
+            <span class="metric-label">Total Tasks</span>
+            <span class="metric-value" id="metricTotal">0</span>
+          </div>
+        </div>
+
+        <div class="metric-card metric-pending" id="metricCardPending" role="button" tabindex="0" title="Click to filter by Pending tasks">
+          <div class="metric-icon metric-icon-pending" aria-hidden="true">⏳</div>
+          <div class="metric-content">
+            <span class="metric-label">Pending</span>
+            <span class="metric-value" id="metricPending">0</span>
+          </div>
+        </div>
+
+        <div class="metric-card metric-progress" id="metricCardProgress" role="button" tabindex="0" title="Click to filter by In Progress tasks">
+          <div class="metric-icon metric-icon-progress" aria-hidden="true">⚡</div>
+          <div class="metric-content">
+            <span class="metric-label">In Progress</span>
+            <span class="metric-value" id="metricInProgress">0</span>
+          </div>
+        </div>
+
+        <div class="metric-card metric-completed" id="metricCardCompleted" role="button" tabindex="0" title="Click to filter by Completed tasks">
+          <div class="metric-icon metric-icon-completed" aria-hidden="true">✅</div>
+          <div class="metric-content">
+            <span class="metric-label">Completed</span>
+            <span class="metric-value" id="metricCompleted">0</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Filter, Search, and Sort Controls Toolbar -->
+      <section class="toolbar-section" aria-label="Task filters and search">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true">
+            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+          </svg>
+          <input type="text" id="searchInput" class="search-input" placeholder="Search tasks by title..." aria-label="Search tasks by title">
+          <button type="button" class="search-clear-btn" id="searchClearBtn" aria-label="Clear search" hidden>&times;</button>
+        </div>
+
+        <div class="filters-group">
+          <div class="filter-control">
+            <label for="statusFilter" class="filter-label">Status</label>
+            <select id="statusFilter" class="select-input">
+              <option value="ALL">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+
+          <div class="filter-control">
+            <label for="priorityFilter" class="filter-label">Priority</label>
+            <select id="priorityFilter" class="select-input">
+              <option value="ALL">All Priorities</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+
+          <div class="filter-control">
+            <label for="sortOrder" class="filter-label">Sort</label>
+            <select id="sortOrder" class="select-input">
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="priority-desc">Priority: High to Low</option>
+              <option value="title-asc">Title: A to Z</option>
+            </select>
+          </div>
+
+          <button type="button" class="btn btn-secondary btn-icon-only" id="refreshTasksBtn" title="Refresh task list" aria-label="Refresh tasks">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.047a1 1 0 011.885-.666A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566l-.391-.286z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- Active Filters Display -->
+      <div class="active-filters-bar" id="activeFiltersBar" hidden>
+        <span class="active-filters-label">Active filters:</span>
+        <div class="active-filters-chips" id="activeFiltersChips"></div>
+        <button type="button" class="btn-link" id="resetFiltersBtn">Reset All</button>
+      </div>
+
+      <!-- Task List Container -->
+      <section class="task-list-section" aria-label="Task List">
+        <!-- Loading State -->
+        <div class="loading-state" id="loadingState" aria-live="polite">
+          <div class="spinner" aria-hidden="true"></div>
+          <p class="loading-text">Loading tasks from Cloudflare Workers KV...</p>
+        </div>
+
+        <!-- Error State -->
+        <div class="error-banner" id="errorBanner" role="alert" hidden style="display: none;">
+          <div class="error-icon" aria-hidden="true">⚠️</div>
+          <div class="error-content">
+            <h3 class="error-title" id="errorTitle">Failed to load tasks</h3>
+            <p class="error-message" id="errorMessage">Unable to reach the serverless backend.</p>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="errorRetryBtn">Retry</button>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState" hidden style="display: none;">
+          <div class="empty-icon" aria-hidden="true">📝</div>
+          <h2 class="empty-title" id="emptyTitle">No tasks found</h2>
+          <p class="empty-description" id="emptyDescription">You don't have any tasks scheduled. Click 'Add Task' to get started!</p>
+          <button type="button" class="btn btn-primary" id="emptyActionBtn">Create Your First Task</button>
+        </div>
+
+        <!-- Tasks Grid / Rows -->
+        <div class="tasks-grid" id="tasksGrid" role="list">
+          <!-- Rendered dynamically via JavaScript -->
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Create / Edit Task Modal Dialog -->
+  <div class="modal-overlay" id="taskModalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalTitle">Create New Task</h2>
+        <button type="button" class="modal-close-btn" id="modalCloseBtn" aria-label="Close dialog">&times;</button>
+      </div>
+      <form id="taskForm" class="modal-form" novalidate>
+        <input type="hidden" id="taskId" name="taskId" value="">
+
+        <div class="form-group">
+          <label for="taskTitle" class="form-label">
+            Task Title <span class="required-indicator">*</span>
+          </label>
+          <input type="text" id="taskTitle" name="taskTitle" class="form-input" placeholder="e.g. Complete Operating Systems Assignment 3" maxlength="200" required aria-describedby="titleValidationMsg">
+          <div class="field-meta">
+            <span class="validation-message" id="titleValidationMsg" role="alert"></span>
+            <span class="char-counter" id="titleCharCount">0/200</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="taskPriority" class="form-label">Priority</label>
+            <select id="taskPriority" name="taskPriority" class="form-select">
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="taskStatus" class="form-label">Status</label>
+            <select id="taskStatus" name="taskStatus" class="form-select">
+              <option value="Pending" selected>Pending</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="modalCancelBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="modalSubmitBtn">
+            <span class="btn-spinner" id="modalBtnSpinner" hidden aria-hidden="true"></span>
+            <span id="modalSubmitBtnText">Save Task</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal Dialog -->
+  <div class="modal-overlay" id="deleteModalOverlay" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle" hidden>
+    <div class="modal-dialog modal-dialog-sm">
+      <div class="modal-header modal-header-danger">
+        <div class="danger-header-icon" aria-hidden="true">🗑️</div>
+        <h2 class="modal-title" id="deleteModalTitle">Delete Task</h2>
+        <button type="button" class="modal-close-btn" id="deleteModalCloseBtn" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="delete-warning-text">Are you sure you want to permanently delete this task?</p>
+        <p class="delete-task-preview" id="deleteTaskTitlePreview">"Task title"</p>
+        <p class="delete-subtext">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="deleteCancelBtn">Cancel</button>
+        <button type="button" class="btn btn-danger" id="deleteConfirmBtn">
+          <span class="btn-spinner" id="deleteBtnSpinner" hidden aria-hidden="true"></span>
+          <span id="deleteConfirmBtnText">Yes, Delete Task</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <p>Student Task Manager &bull; Serverless backend on Cloudflare Workers &bull; Storage via Workers KV</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

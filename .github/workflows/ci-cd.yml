@@ -1,0 +1,99 @@
+name: Student Task Manager CI/CD
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # Job 1: Application Test Suite
+  # ----------------------------------------------------------------------------
+  application-tests:
+    name: Run Application Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache-dependency-path: package.json
+
+      - name: Run Worker Unit & Integration Tests
+        run: node --test application/worker.test.js
+
+  # ----------------------------------------------------------------------------
+  # Job 2: Terraform IaC Linting and Validation
+  # ----------------------------------------------------------------------------
+  terraform-validation:
+    name: Validate Terraform Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup HashiCorp Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.5
+
+      - name: Check Terraform Formatting
+        run: terraform fmt -check -recursive terraform/
+
+      - name: Initialize Terraform (Backend Disabled for Validation)
+        run: terraform -chdir=terraform init -backend=false
+
+      - name: Validate Terraform Manifests
+        run: terraform -chdir=terraform validate
+
+  # ----------------------------------------------------------------------------
+  # Job 3: Automated Infrastructure Provisioning (Protected Deploy)
+  # ----------------------------------------------------------------------------
+  deploy-infrastructure:
+    name: Deploy to Cloudflare via Terraform
+    needs: [application-tests, terraform-validation]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify Deployment Secrets Configured
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] || [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "::warning::Cloudflare deployment secrets (CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID) are not configured. Skipping remote deployment."
+            exit 0
+          fi
+
+      - name: Setup HashiCorp Terraform
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.5
+
+      - name: Initialize Terraform with Provider Cache
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: terraform -chdir=terraform init
+
+      - name: Generate Terraform Deployment Plan
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: terraform -chdir=terraform plan -out=tfplan -input=false
+
+      - name: Apply Terraform Plan
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: terraform -chdir=terraform apply -input=false tfplan

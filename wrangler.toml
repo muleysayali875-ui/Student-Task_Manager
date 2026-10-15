@@ -1,0 +1,20 @@
+# wrangler.toml - Local development configuration for Student Task Manager
+#
+# This file is used ONLY for local browser testing via `wrangler dev --local`.
+# It contains no credentials, no account ID, and no real Cloudflare KV namespace IDs.
+# The Terraform configuration (terraform/) is the authoritative source for production
+# infrastructure. This file is intentionally kept separate and secret-free.
+#
+# DO NOT add cloudflare_account_id, api_token, or real kv namespace IDs here.
+
+name               = "student-task-manager-worker"
+main               = "application/worker.js"
+compatibility_date = "2024-01-01"
+
+# Local KV namespace binding - matches the binding name used in application/worker.js
+# (env.TASKS_KV) and the Terraform variable kv_binding_name default ("TASKS_KV").
+# The id value here is a placeholder; it is only used in --local mode where Wrangler
+# creates an in-memory/SQLite KV store automatically. It is never sent to Cloudflare.
+[[kv_namespaces]]
+binding = "TASKS_KV"
+id      = "local-dev-placeholder"

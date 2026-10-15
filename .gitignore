@@ -1,0 +1,63 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+tfplan
+*.tfplan
+
+# Terraform variables & sensitive files
+*.tfvars
+*.tfvars.json
+# Ensure example files remain trackable
+!terraform.tfvars.example
+!*.tfvars.example
+
+# Environment and Secrets
+.env
+.env.*
+!.env.example
+
+# Node / Web Application Dependencies & Build Outputs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+build/
+.next/
+out/
+
+# Cloudflare & Wrangler Local Runtime
+.wrangler/
+
+# Python / Serverless Lambda artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# IDE & Editor Configurations
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
